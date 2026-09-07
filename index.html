@@ -205,6 +205,17 @@ textarea{resize:vertical;min-height:100px}
   color:#fff;border:none;border-radius:50%;width:32px;height:32px;
   cursor:pointer;font-size:18px;box-shadow:0 3px 10px rgba(0,0,0,0.2)}
 
+/* ===== 可爱甜点装饰 ===== */
+.sweet-strip{display:flex;justify-content:center;gap:12px;margin:14px 0 4px;
+  font-size:28px;filter:drop-shadow(0 3px 4px rgba(255,107,107,.16))}
+.avatar-picker{display:flex;align-items:center;gap:14px;margin:12px 0}
+.avatar-picker img{width:76px;height:76px;border-radius:50%;object-fit:cover;
+  border:3px solid var(--pink);background:var(--paper-2)}
+.avatar-actions{display:flex;flex:1;gap:8px;flex-wrap:wrap}
+.avatar-actions .btn{width:auto;min-width:120px;padding:12px 16px}
+.btn.secondary{background:#fff;color:var(--red);border:2px solid var(--pink);box-shadow:none}
+.upload-hint{font-size:12px;color:var(--ink-soft);line-height:1.6;margin-top:8px}
+
 /* ===== 空状态 ===== */
 .empty{text-align:center;color:var(--ink-soft);font-size:15px;
   padding:50px 20px;line-height:1.8}
@@ -221,8 +232,9 @@ textarea{resize:vertical;min-height:100px}
 <!-- ===== 登录页 ===== -->
 <div id="gate" class="gate">
   <div class="card">
-    <h1>🍜</h1>
+    <h1>🍰</h1>
     <h1>鲍师傅私厨</h1>
+    <div class="sweet-strip" aria-hidden="true">🧁 🍓 🍮</div>
     <div class="tag">凭口令进入✨</div>
     <div id="gateErr" class="err"></div>
     <div class="field">
@@ -237,7 +249,7 @@ textarea{resize:vertical;min-height:100px}
 <div id="app" class="hidden">
   <header class="header">
     <div class="wrap">
-      <h1>🍜 鲍师傅私厨</h1>
+      <h1>🍰 鲍师傅私厨</h1>
       <div class="header-right">
         <div class="me-box" id="meBox"></div>
         <div class="notify-bell" id="notifyBell">🔔<span id="notifyBadge" class="notify-badge hidden">0</span></div>
@@ -286,6 +298,7 @@ textarea{resize:vertical;min-height:100px}
   <!-- 相册 -->
   <div id="v-album" class="view wrap">
     <button id="uploadBtn" class="btn" style="margin:20px 0;width:100%">📤 上传照片</button>
+    <div class="sweet-strip" aria-hidden="true">🐰 🍓 🧸</div>
     <input id="fileInput" type="file" accept="image/*" multiple class="hidden">
     <div id="albumList"></div>
     <div id="albumEmpty" class="hidden empty">相册还是空的 📷<br>点上面上传第一张吧</div>
@@ -404,7 +417,15 @@ textarea{resize:vertical;min-height:100px}
     
     <div style="border:2px solid var(--line);border-radius:16px;padding:16px">
       <h3 style="margin:0 0 12px;font-size:16px">🖼️ 头像</h3>
-      <input id="avFile" type="file" accept="image/*" class="field">
+      <input id="avFile" type="file" accept="image/jpeg,image/png,image/webp" class="hidden">
+      <div class="avatar-picker">
+        <img id="avPreview" alt="头像预览">
+        <div class="avatar-actions">
+          <button id="chooseAvBtn" class="btn secondary" type="button">选择头像</button>
+          <button id="changeAvBtn" class="btn" type="button" disabled>确认更换</button>
+        </div>
+      </div>
+      <div class="upload-hint">支持 JPG、PNG、WebP，图片会自动裁剪成正方形。</div>
       <div id="avStatus" style="text-align:center;color:var(--ink-soft);font-size:13px;margin:10px 0"></div>
     </div>
   </div>
@@ -414,8 +435,10 @@ textarea{resize:vertical;min-height:100px}
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInAnonymously, signOut, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp }
+import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp, setDoc }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBzdgp3wdiZE0n5IxlFCdbzXLNOIEWPM0s",
@@ -431,6 +454,7 @@ const GATE_PASSWORD = "bhz0709";
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const storage = getStorage(app);
 
 let cid = localStorage.getItem('bsf_cid') || 'c'+Math.random().toString(36).slice(2,8);
 let nick = localStorage.getItem('bsf_nick') || '';
@@ -447,6 +471,7 @@ let notifications = JSON.parse(localStorage.getItem('bsf_notif') || '[]');
 let currentMonth = new Date();
 let selectedDate = null;
 let uploadQueue = [];
+let pendingAvatar = null;
 
 const $ = s => document.querySelector(s);
 const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -517,9 +542,9 @@ onAuthStateChanged(auth, async user => {
 
 async function ping() {
   try {
-    await updateDoc(doc(db, 'folks', cid), {
+    await setDoc(doc(db, 'folks', cid), {
       nick, avatar, lastSeen: Date.now()
-    });
+    }, {merge:true});
   }catch(e) {}
 }
 
@@ -954,9 +979,9 @@ $('#uploadBtn').onclick = () => {
   $('#fileInput').click();
 };
 
-function compressImage(file) {
+function compressImage(file, maxSide = 1600, quality = 0.82) {
   return new Promise((resolve, reject) => {
-    if(file.size > 5*1024*1024) { reject(new Error('图片过大，请选择 < 5MB 的')); return; }
+    if(file.size > 12*1024*1024) { reject(new Error('图片过大，请选择 12MB 以内的')); return; }
     
     const reader = new FileReader();
     reader.onload = (ev) => {
@@ -964,16 +989,15 @@ function compressImage(file) {
       img.onload = () => {
         const canvas = document.createElement('canvas');
         let w = img.width, h = img.height;
-        if(w > 800 || h > 800) {
-          const scale = Math.min(800/w, 800/h);
+        if(w > maxSide || h > maxSide) {
+          const scale = Math.min(maxSide/w, maxSide/h);
           w *= scale;
           h *= scale;
         }
         canvas.width = w;
         canvas.height = h;
         canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        const compressed = canvas.toDataURL('image/jpeg', 0.7);
-        resolve(compressed);
+        canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('图片压缩失败')), 'image/jpeg', quality);
       };
       img.onerror = () => reject(new Error('图片加载失败'));
       img.src = ev.target.result;
@@ -999,7 +1023,7 @@ $('#fileInput').onchange = async e => {
       uploadQueue.push(compressed);
       const idx = uploadQueue.length - 1;
       $('#previewBox').innerHTML += `<div class="img-preview" data-img="${idx}">
-        <img src="${compressed}" alt="">
+        <img src="${URL.createObjectURL(compressed)}" alt="待上传照片">
         <button class="img-del">✕</button>
       </div>`;
     }catch(err) {
@@ -1035,9 +1059,16 @@ $('#albumSaveBtn').onclick = async () => {
   btn.textContent = '上传中…';
   
   try {
+    const urls = [];
+    for(let i=0; i<imgs.length; i++) {
+      const path = `albums/${cid}/${Date.now()}-${i}.jpg`;
+      const imageRef = ref(storage, path);
+      await uploadBytes(imageRef, imgs[i], {contentType:'image/jpeg'});
+      urls.push(await getDownloadURL(imageRef));
+    }
     await addDoc(collection(db, 'shots'), {
       nick, cid, avatar,
-      images: imgs,
+      images: urls,
       caption: $('#albumCaption').value.trim(),
       ms: Date.now(),
       createdAt: serverTimestamp()
@@ -1056,6 +1087,9 @@ $('#albumSaveBtn').onclick = async () => {
 $('#settingsBtn').onclick = () => {
   $('#nickInput').value = nick;
   $('#avStatus').textContent = '';
+  $('#avPreview').src = avatar || `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" rx="50" fill="${avColor(nick)}"/><text x="50" y="63" text-anchor="middle" font-size="44" fill="white">${(nick||'匿').charAt(0)}</text></svg>`)}`;
+  pendingAvatar = null;
+  $('#changeAvBtn').disabled = true;
   $('#settingsModal').classList.add('on');
 };
 
@@ -1076,34 +1110,58 @@ $('#saveNickBtn').onclick = async () => {
   }
 };
 
+$('#chooseAvBtn').onclick = () => $('#avFile').click();
+
 $('#avFile').onchange = async e => {
   const f = e.target.files[0];
   if(!f) return;
-  
   const status = $('#avStatus');
   status.textContent = '处理中…';
-  
   try {
-    const reader = new FileReader();
-    reader.onload = async ev => {
+    if(!/^image\/(jpeg|png|webp)$/.test(f.type)) throw new Error('请选择 JPG、PNG 或 WebP 图片');
+    pendingAvatar = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('文件读取失败'));
+      reader.onload = ev => {
       const img = new Image();
-      img.onload = async () => {
+      img.onerror = () => reject(new Error('图片加载失败'));
+      img.onload = () => {
         const canvas = document.createElement('canvas');
-        const s = Math.min(100, Math.min(img.width, img.height));
-        canvas.width = canvas.height = 100;
-        canvas.getContext('2d').drawImage(img, (img.width-s)/2, (img.height-s)/2, s, s, 0, 0, 100, 100);
-        avatar = canvas.toDataURL('image/jpeg', 0.8);
-        localStorage.setItem('bsf_avatar', avatar);
-        await ping();
-        renderMe();
-        status.textContent = '换好了！';
-        setTimeout(() => $('#avModal').classList.remove('on'), 500);
+        const s = Math.min(img.width, img.height);
+        canvas.width = canvas.height = 400;
+        canvas.getContext('2d').drawImage(img, (img.width-s)/2, (img.height-s)/2, s, s, 0, 0, 400, 400);
+        canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('头像处理失败')), 'image/jpeg', .88);
       };
       img.src = ev.target.result;
-    };
-    reader.readAsDataURL(f);
+      };
+      reader.readAsDataURL(f);
+    });
+    $('#avPreview').src = URL.createObjectURL(pendingAvatar);
+    $('#changeAvBtn').disabled = false;
+    status.textContent = '预览好了，点击“确认更换”保存';
   }catch(e) {
     status.textContent = '失败：' + e.message;
+  }
+  e.target.value = '';
+};
+
+$('#changeAvBtn').onclick = async () => {
+  if(!pendingAvatar) return;
+  const btn = $('#changeAvBtn');
+  btn.disabled = true;
+  $('#avStatus').textContent = '正在更换…';
+  try {
+    const avatarRef = ref(storage, `avatars/${cid}.jpg`);
+    await uploadBytes(avatarRef, pendingAvatar, {contentType:'image/jpeg'});
+    avatar = await getDownloadURL(avatarRef) + `&v=${Date.now()}`;
+    localStorage.setItem('bsf_avatar', avatar);
+    await setDoc(doc(db, 'folks', cid), {nick, avatar, lastSeen:Date.now()}, {merge:true});
+    renderMe();
+    $('#avStatus').textContent = '头像换好啦！';
+    pendingAvatar = null;
+  }catch(e) {
+    btn.disabled = false;
+    $('#avStatus').textContent = '更换失败：' + e.message;
   }
 };
 
