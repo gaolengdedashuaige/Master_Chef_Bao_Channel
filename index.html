@@ -453,7 +453,7 @@ textarea{resize:vertical;min-height:100px}
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInAnonymously, signOut, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp, setDoc }
+import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp, setDoc, arrayUnion }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -479,7 +479,6 @@ localStorage.setItem('bsf_cid', cid);
 let plans = [];
 let memos = [];
 let shots = [];
-let albumComments = [];
 let folks = [];
 let folkMap = {};
 let notifications = JSON.parse(localStorage.getItem('bsf_notif') || '[]');
@@ -509,7 +508,7 @@ function avColor(s) {
 }
 
 function avatarHTML(id, name) {
-  const av = folkMap[id]?.avatar || '';
+  const av = id === cid ? avatar : (folkMap[id]?.avatar || '');
   if(av) return `<img class="av" src="${av}" alt="" onerror="this.style.display='none'">`;
   const nm = (name || '匿名').charAt(0);
   return `<span class="av-txt" style="background:${avColor(nm)}">${nm}</span>`;
@@ -635,11 +634,6 @@ function listenData() {
     renderAlbum();
   });
 
-  onSnapshot(collection(db, 'albumComments'), snap => {
-    albumComments = snap.docs.map(d => ({id: d.id, ...d.data()}));
-    renderAlbum();
-  });
-  
   onSnapshot(collection(db, 'folks'), snap => {
     folks = snap.docs.map(d => ({id: d.id, ...d.data()}));
     folkMap = Object.fromEntries(folks.map(f => [f.id, f]));
@@ -960,7 +954,7 @@ function renderAlbum() {
   $('#albumEmpty').classList.toggle('hidden', sorted.length > 0);
   $('#albumList').innerHTML = sorted.map(s => {
     const imgs = s.images || [];
-    const comments = albumComments.filter(c => c.shotId === s.id).sort((a,b) => (a.ms||0)-(b.ms||0));
+    const comments = [...(s.comments || [])].sort((a,b) => (a.ms||0)-(b.ms||0));
     const gridClass = imgs.length===1?'':imgs.length<=2?'grid-2':imgs.length===3?'grid-3':'grid-4';
     
     return `<div class="album-item">
@@ -1054,12 +1048,14 @@ async function sendAlbumComment(shotId, btn) {
   btn.disabled = true;
   btn.textContent = '发送中';
   try {
-    await addDoc(collection(db, 'albumComments'), {
-      shotId, cid, nick, avatar, text,
+    const comment = {
+      id: cid + '-' + Date.now() + '-' + Math.random().toString(36).slice(2,6),
+      cid, nick, avatar, text,
       parentId: input.dataset.parentId || '',
       replyToNick: input.dataset.replyNick || '',
-      ms: Date.now(), createdAt: serverTimestamp()
-    });
+      ms: Date.now()
+    };
+    await updateDoc(doc(db, 'shots', shotId), {comments: arrayUnion(comment)});
     input.value = '';
     clearReply(shotId);
   }catch(e) {
@@ -1176,6 +1172,7 @@ $('#albumSaveBtn').onclick = async () => {
     await addDoc(collection(db, 'shots'), {
       nick, cid, avatar,
       images: imgs,
+      comments: [],
       caption: $('#albumCaption').value.trim(),
       ms: Date.now(),
       createdAt: serverTimestamp()
@@ -1260,9 +1257,13 @@ $('#changeAvBtn').onclick = async () => {
   try {
     avatar = pendingAvatar;
     localStorage.setItem('bsf_avatar', avatar);
-    await setDoc(doc(db, 'folks', cid), {nick, avatar, lastSeen:Date.now()}, {merge:true});
     renderMe();
-    $('#avStatus').textContent = '头像换好啦！';
+    try {
+      await setDoc(doc(db, 'folks', cid), {nick, avatar, lastSeen:Date.now()}, {merge:true});
+      $('#avStatus').textContent = '头像已保存并同步！';
+    }catch(syncError) {
+      $('#avStatus').textContent = '头像已保存在当前设备，但云端同步失败';
+    }
     pendingAvatar = null;
   }catch(e) {
     btn.disabled = false;
