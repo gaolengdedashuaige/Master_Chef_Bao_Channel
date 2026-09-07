@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>鲍师傅私厨</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --red:#D6242C; --gold:#F2B705; --paper:#FCF7EC; --paper-2:#F4EAD7;
+  --ink:#221A15; --ink-soft:#6B5D51; --line:#E0D2BA; --jade:#1E6F5C;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper); color:var(--ink);
+  font-family:"Noto Sans SC",-apple-system,BlinkMacSystemFont,sans-serif;
+  padding-bottom:50px;
+}
+.wrap{max-width:960px;margin:0 auto;padding:0 16px}
+.btn{background:var(--red);color:#fff;border:none;border-radius:14px;padding:12px 18px;
+  font-size:15px;font-weight:700;cursor:pointer;width:100%}
+.btn:hover{opacity:0.9}
+.btn:active{transform:scale(0.98)}
+.btn[disabled]{opacity:0.5}
+input[type=text],input[type=password],input[type=number],input[type=file],
+input[type=datetime-local],textarea,select{
+  font-family:inherit;font-size:15px;width:100%;padding:11px;border:1px solid var(--line);
+  border-radius:10px;background:#fff;color:var(--ink);margin-bottom:10px}
+textarea{resize:vertical;min-height:80px}
+.field{margin-bottom:15px}
+.field label{display:block;font-size:12px;color:var(--ink-soft);margin-bottom:5px;font-weight:600}
+.hidden{display:none!important}
+
+/* ===== 进店 ===== */
+.gate{max-width:400px;margin:20vh auto;padding:0 16px}
+.gate .card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:30px;
+  box-shadow:0 6px 0 rgba(34,26,21,.08)}
+.gate h1{font-size:28px;margin:0 0 10px;color:var(--red)}
+.gate .tag{font-size:13px;color:var(--ink-soft);margin-bottom:20px}
+.err{background:#FDE8E8;border:1px solid #F5C2C2;color:var(--red);font-size:13px;
+  padding:10px;border-radius:10px;margin-bottom:10px;display:none}
+.err.on{display:block}
+
+/* ===== 头部 ===== */
+.header{background:var(--red);color:#fff;padding:16px 0;position:sticky;top:0;z-index:100;
+  box-shadow:0 2px 8px rgba(0,0,0,0.1)}
+.header .wrap{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.header h1{font-size:24px;margin:0}
+.header-right{display:flex;gap:10px;align-items:center}
+.header button{background:rgba(255,255,255,0.2);color:#fff;border:1px solid rgba(255,255,255,0.5);
+  border-radius:8px;padding:8px 12px;font-size:12px;cursor:pointer}
+.header button:hover{background:rgba(255,255,255,0.3)}
+.me-box{display:flex;align-items:center;gap:8px;font-size:13px}
+.av{width:32px;height:32px;border-radius:50%;object-fit:cover;background:var(--paper)}
+.av-txt{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  background:#fff;color:var(--red);font-weight:700;font-size:14px}
+
+/* ===== 标签页 ===== */
+.tabs{display:flex;gap:10px;border-bottom:2px solid var(--line);margin:10px 0;
+  padding:0 16px;overflow-x:auto}
+.tabs button{background:none;border:none;color:var(--ink-soft);font-size:14px;padding:12px 0;
+  white-space:nowrap;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px}
+.tabs button.on{color:var(--red);border-bottom-color:var(--red);font-weight:700}
+.view{display:none}
+.view.on{display:block}
+
+/* ===== 日历 ===== */
+.calendar-header{display:flex;justify-content:space-between;align-items:center;margin:20px 0 15px}
+.calendar-header h2{margin:0;font-size:18px}
+.nav-btns{display:flex;gap:8px}
+.nav-btns button{background:#fff;border:1px solid var(--line);border-radius:8px;
+  width:36px;height:36px;cursor:pointer;font-size:16px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin:20px 0}
+.cal-cell{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  border:1px solid var(--line);border-radius:10px;background:#fff;cursor:pointer;font-size:12px;
+  position:relative;transition:all 0.2s}
+.cal-cell:hover{transform:translateY(-2px);box-shadow:0 4px 8px rgba(0,0,0,0.1)}
+.cal-cell.today{border:2px solid var(--red)}
+.cal-cell .date{font-weight:700;font-size:14px;color:var(--ink-soft)}
+.cal-cell .count{font-size:11px;color:var(--jade);margin-top:2px}
+.cal-cell.has{background:var(--paper-2)}
+
+/* ===== 约饭卡片 ===== */
+.plan-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;
+  margin-bottom:12px;box-shadow:0 2px 4px rgba(0,0,0,0.05)}
+.plan-card h3{margin:0 0 10px;font-size:16px;color:var(--red)}
+.plan-meta{font-size:13px;color:var(--ink-soft);line-height:1.6;margin-bottom:10px}
+.plan-meta b{color:var(--ink);font-weight:600}
+.plan-joins{display:flex;gap:8px;align-items:center;margin:10px 0;flex-wrap:wrap}
+.plan-joins .av,.plan-joins .av-txt{width:28px;height:28px;font-size:12px}
+.plan-join-btn{background:var(--jade);color:#fff;border:none;border-radius:8px;padding:10px 16px;
+  cursor:pointer;font-size:13px;font-weight:600}
+.plan-join-btn.joined{background:var(--ink-soft);opacity:0.7}
+.plan-past{opacity:0.5}
+
+/* ===== 相册（朋友圈风格） ===== */
+.album-item{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;
+  margin-bottom:16px;box-shadow:0 2px 6px rgba(0,0,0,0.05)}
+.album-header{display:flex;gap:10px;align-items:center;padding:12px;border-bottom:1px solid var(--line)}
+.album-header .av,.album-header .av-txt{width:36px;height:36px;flex:none;font-size:14px}
+.album-info{flex:1;min-width:0}
+.album-nick{font-weight:700;font-size:13px}
+.album-time{font-size:11px;color:var(--ink-soft);margin-top:2px}
+.album-media{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:2px;
+  background:var(--paper-2);min-height:150px}
+.album-media img{width:100%;aspect-ratio:1;object-fit:cover;cursor:pointer;display:block}
+.album-caption{padding:12px;font-size:14px;line-height:1.5}
+.album-comment{font-size:12px;color:var(--jade);margin-bottom:8px;font-weight:600}
+
+/* ===== 用户卡片 ===== */
+.folks-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin:20px 0}
+.folk-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;
+  text-align:center;box-shadow:0 2px 4px rgba(0,0,0,0.05)}
+.folk-card .av,.folk-card .av-txt{width:48px;height:48px;margin:0 auto 10px;font-size:20px}
+.folk-card .nick{font-weight:700;font-size:13px;display:block;margin-bottom:4px}
+.folk-card .status{font-size:11px;color:var(--ink-soft)}
+.status-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--red);
+  margin-right:4px;vertical-align:middle}
+.status-dot.off{background:#ccc}
+
+/* ===== 弹窗 ===== */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,0.5);display:none;align-items:flex-end;
+  justify-content:center;z-index:200}
+.modal.on{display:flex}
+.modal-content{background:var(--paper);width:100%;max-width:600px;border-radius:20px 20px 0 0;
+  max-height:90vh;overflow-y:auto;padding:20px;animation:slideUp 0.3s ease-out}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:none}}
+@media(min-width:640px){
+  .modal{align-items:center}
+  .modal-content{border-radius:20px;max-width:500px}
+}
+.modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.modal-head h2{margin:0;font-size:20px}
+.modal-close{background:none;border:none;font-size:24px;cursor:pointer;padding:0;width:32px;height:32px}
+
+/* ===== 图片预览 ===== */
+.img-preview{margin:10px 0;position:relative}
+.img-preview img{max-width:100%;max-height:300px;border-radius:10px;display:block}
+.img-del{position:absolute;top:5px;right:5px;background:var(--red);color:#fff;
+  border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px}
+
+/* ===== Lightbox ===== */
+.lightbox{position:fixed;inset:0;background:rgba(0,0,0,0.9);display:none;
+  align-items:center;justify-content:center;z-index:300;padding:20px}
+.lightbox.on{display:flex}
+.lightbox img{max-width:100%;max-height:90vh;border-radius:8px}
+.lightbox-close{position:absolute;top:20px;right:20px;background:#fff;color:#000;
+  border:none;border-radius:50%;width:40px;height:40px;font-size:20px;cursor:pointer}
+
+/* ===== 响应式 ===== */
+@media(max-width:640px){
+  .header h1{font-size:18px}
+  .tabs{padding:0 12px}
+  .wrap{padding:0 12px}
+  .modal-content{padding:16px}
+  .folks-grid{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+
+<!-- ===== 登录页 ===== -->
+<div id="gate" class="gate">
+  <div class="card">
+    <h1>🍜 鲍师傅私厨</h1>
+    <div class="tag">凭口令进入</div>
+    <div id="gateErr" class="err"></div>
+    <div class="field">
+      <label>口令</label>
+      <input id="pwd" type="password" placeholder="••••••••">
+    </div>
+    <button id="enterBtn" class="btn">进入</button>
+  </div>
+</div>
+
+<!-- ===== 主应用 ===== -->
+<div id="app" class="hidden">
+  <header class="header">
+    <div class="wrap">
+      <h1>🍜 鲍师傅私厨</h1>
+      <div class="header-right">
+        <div class="me-box" id="meBox"></div>
+        <button id="changeAv">换头像</button>
+        <button id="logoutBtn">退出</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div class="tabs">
+      <button class="tab on" data-view="cal">📅 日历</button>
+      <button class="tab" data-view="plan">🍱 约饭</button>
+      <button class="tab" data-view="album">📸 相册</button>
+      <button class="tab" data-view="folks">👥 食客</button>
+    </div>
+  </div>
+
+  <!-- 日历 -->
+  <div id="v-cal" class="view on wrap">
+    <div class="calendar-header">
+      <h2 id="monthTitle"></h2>
+      <div class="nav-btns">
+        <button id="prevM">‹</button>
+        <button id="todayBtn">今天</button>
+        <button id="nextM">›</button>
+      </div>
+    </div>
+    <div class="cal-grid" id="calendar"></div>
+  </div>
+
+  <!-- 约饭 -->
+  <div id="v-plan" class="view wrap">
+    <button id="planNew" class="btn" style="margin:20px 0">+ 发起约饭</button>
+    <div id="planList"></div>
+    <div id="planEmpty" class="hidden" style="text-align:center;color:var(--ink-soft);padding:40px 20px">
+      还没有约饭 🥢<br>点上面发起一次吧
+    </div>
+  </div>
+
+  <!-- 相册 -->
+  <div id="v-album" class="view wrap">
+    <button id="uploadBtn" class="btn" style="margin:20px 0">📤 上传照片</button>
+    <input id="fileInput" type="file" accept="image/*,video/*" multiple class="hidden">
+    <div id="albumList"></div>
+    <div id="albumEmpty" class="hidden" style="text-align:center;color:var(--ink-soft);padding:40px 20px">
+      相册还是空的 📷<br>点上面上传第一张吧
+    </div>
+  </div>
+
+  <!-- 用户列表 -->
+  <div id="v-folks" class="view wrap">
+    <div class="folks-grid" id="folksList"></div>
+  </div>
+</div>
+
+<!-- ===== 模态窗 ===== -->
+<!-- 日期详情 -->
+<div id="dayModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-head">
+      <h2 id="dayTitle"></h2>
+      <button class="modal-close" data-close="dayModal">×</button>
+    </div>
+    <div id="dayPlans"></div>
+    <button id="quickPlanBtn" class="btn" style="margin-top:20px">快速约饭</button>
+  </div>
+</div>
+
+<!-- 新建/编辑约饭 -->
+<div id="planModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-head">
+      <h2>🍱 约饭</h2>
+      <button class="modal-close" data-close="planModal">×</button>
+    </div>
+    <div class="field">
+      <label>吃什么</label>
+      <input id="planTitle" type="text" placeholder="例如：火锅">
+    </div>
+    <div class="field">
+      <label>在哪</label>
+      <input id="planPlace" type="text" placeholder="例如：B 座 3 楼">
+    </div>
+    <div class="field">
+      <label>什么时候</label>
+      <input id="planWhen" type="datetime-local">
+    </div>
+    <div class="field">
+      <label>补充说明（可选）</label>
+      <textarea id="planNote" placeholder="例如：人均 50 元，预计半小时"></textarea>
+    </div>
+    <button id="planSaveBtn" class="btn">发出去</button>
+  </div>
+</div>
+
+<!-- 上传相册 -->
+<div id="albumModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-head">
+      <h2>📸 上传照片</h2>
+      <button class="modal-close" data-close="albumModal">×</button>
+    </div>
+    <div id="previewBox"></div>
+    <div class="field">
+      <label>说明（可选）</label>
+      <input id="albumCaption" type="text" placeholder="例如：今天的饭真好吃">
+    </div>
+    <button id="albumSaveBtn" class="btn">传上去</button>
+  </div>
+</div>
+
+<!-- 查看大图 -->
+<div id="lightbox" class="lightbox">
+  <img id="lightboxImg" alt="">
+  <button class="lightbox-close" onclick="closeLightbox()">×</button>
+</div>
+
+<!-- 换头像 -->
+<div id="avModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-head">
+      <h2>换头像</h2>
+      <button class="modal-close" data-close="avModal">×</button>
+    </div>
+    <input id="avFile" type="file" accept="image/*" class="field">
+    <div id="avStatus" style="text-align:center;color:var(--ink-soft);font-size:13px;margin:10px 0"></div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInAnonymously, signOut, onAuthStateChanged }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, getDoc, onSnapshot, serverTimestamp }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+// ===== 【重要】替换为您自己的 Firebase 配置 =====
+// 从 Firebase 控制台 → 项目设置 → 应用 复制以下内容
+const firebaseConfig = {
+  apiKey: "AIzaSyBzdgp3wdiZE0n5IxlFCdbzXLNOIEWPM0s",
+  authDomain: "master-chef-dd31a.firebaseapp.com",
+  projectId: "master-chef-dd31a",
+  storageBucket: "master-chef-dd31a.firebasestorage.app",
+  messagingSenderId: "608014742124",
+  appId: "1:608014742124:web:f585215bb93a0894ea9e49",
+  measurementId: "G-Q6EGK4PDVH"
+};
+
+// 进店口令（改成您想要的）
+const GATE_PASSWORD = "bhz0709";
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+// ===== 全局状态 =====
+let cid = localStorage.getItem('bsf_cid') || 'c'+Math.random().toString(36).slice(2,8);
+let nick = localStorage.getItem('bsf_nick') || '';
+let avatar = localStorage.getItem('bsf_avatar') || '';
+localStorage.setItem('bsf_cid', cid);
+
+let plans = [];
+let shots = [];
+let folks = [];
+let folkMap = {};
+
+let currentMonth = new Date();
+let selectedDate = null;
+let uploadQueue = [];
+
+const $ = s => document.querySelector(s);
+const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const ago = ms => {
+  if(!ms) return '刚刚';
+  const d = Date.now() - ms;
+  if(d < 60000) return '刚刚';
+  if(d < 3600000) return Math.floor(d/60000)+'分钟前';
+  if(d < 86400000) return Math.floor(d/3600000)+'小时前';
+  return Math.floor(d/86400000)+'天前';
+};
+
+function avColor(s) {
+  const colors = ['#D6242C','#F2B705','#1E6F5C','#5E7A8A','#B4568F'];
+  let h = 0;
+  for(const ch of (s||'?')) h = (h*31 + ch.charCodeAt(0)) >>> 0;
+  return colors[h % colors.length];
+}
+
+function avatarHTML(id, name) {
+  const av = folkMap[id]?.avatar || '';
+  if(av) return `<img class="av" src="${av}" alt="">`;
+  const nm = (name || '匿名').charAt(0);
+  return `<span class="av-txt" style="background:${avColor(nm)}">${nm}</span>`;
+}
+
+// ===== 进店 =====
+$('#enterBtn').onclick = async () => {
+  const pwd = $('#pwd').value.trim();
+  if(!pwd) return;
+  if(pwd !== GATE_PASSWORD) {
+    $('#gateErr').textContent = '口令不对 🙅';
+    $('#gateErr').classList.add('on');
+    $('#pwd').select();
+    return;
+  }
+  try {
+    await signInAnonymously(auth);
+  }catch(e) {
+    alert('登不上：' + e.message);
+  }
+};
+
+$('#pwd').addEventListener('keydown', e => {
+  if(e.key==='Enter') $('#enterBtn').click();
+});
+
+// ===== 认证状态 =====
+onAuthStateChanged(auth, async user => {
+  if(user) {
+    if(!nick) {
+      nick = prompt('输入您的昵称') || '匿名';
+      localStorage.setItem('bsf_nick', nick);
+    }
+    $('#gate').classList.add('hidden');
+    $('#app').classList.remove('hidden');
+    renderMe();
+    listenData();
+    ping();
+    setInterval(ping, 60000);
+  }else{
+    $('#app').classList.add('hidden');
+    $('#gate').classList.remove('hidden');
+    $('#pwd').value = '';
+  }
+});
+
+async function ping() {
+  try {
+    await updateDoc(doc(db, 'folks', cid), {
+      nick, avatar, lastSeen: Date.now()
+    });
+  }catch(e) {
+    // 新建用户
+    try {
+      await updateDoc(doc(db, 'folks', cid), {
+        nick, avatar, lastSeen: Date.now(), joinedAt: Date.now()
+      });
+    }catch {
+      // 首次新建
+    }
+  }
+}
+
+function renderMe() {
+  const av = avatarHTML(cid, nick);
+  $('#meBox').innerHTML = `${av}<strong style="max-width:100px;overflow:hidden;text-overflow:ellipsis">${nick}</strong>`;
+}
+
+// ===== 监听数据 =====
+function listenData() {
+  onSnapshot(collection(db, 'plans'), snap => {
+    plans = snap.docs.map(d => ({id: d.id, ...d.data()}));
+    renderPlans();
+    renderCalendar();
+  });
+  
+  onSnapshot(collection(db, 'shots'), snap => {
+    shots = snap.docs.map(d => ({id: d.id, ...d.data()}));
+    renderAlbum();
+  });
+  
+  onSnapshot(collection(db, 'folks'), snap => {
+    folks = snap.docs.map(d => ({id: d.id, ...d.data()}));
+    folkMap = Object.fromEntries(folks.map(f => [f.id, f]));
+    renderFolks();
+  });
+}
+
+// ===== 日历 =====
+function renderCalendar() {
+  const y = currentMonth.getFullYear();
+  const m = currentMonth.getMonth();
+  const first = new Date(y, m, 1).getDay();
+  const days = new Date(y, m+1, 0).getDate();
+  
+  try {
+    $('#monthTitle').textContent = new Date(y,m,1).toLocaleDateString('zh-CN',{year:'numeric',month:'long'});
+  }catch {
+    $('#monthTitle').textContent = `${y}年${m+1}月`;
+  }
+  
+  const html = [];
+  for(let i=0; i<first; i++) html.push('<div class="cal-cell blank"></div>');
+  
+  for(let d=1; d<=days; d++) {
+    const ds = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dayPlans = plans.filter(p => p.date === ds);
+    const today = ds === ymd(new Date());
+    
+    html.push(`<button class="cal-cell ${dayPlans.length?'has':''} ${today?'today':''}" data-date="${ds}">
+      <span class="date">${d}</span>
+      ${dayPlans.length ? `<span class="count">${dayPlans.length}场</span>` : ''}
+    </button>`);
+  }
+  
+  $('#calendar').innerHTML = html.join('');
+  $('#calendar').querySelectorAll('[data-date]').forEach(el => {
+    el.onclick = () => openDay(el.dataset.date);
+  });
+}
+
+function openDay(ds) {
+  selectedDate = ds;
+  const d = new Date(ds);
+  try {
+    $('#dayTitle').textContent = d.toLocaleDateString('zh-CN',{weekday:'long',month:'long',day:'numeric'});
+  }catch {
+    $('#dayTitle').textContent = ds;
+  }
+  
+  const dayPlans = plans.filter(p => p.date === ds).sort((a,b) => (a.when||'').localeCompare(b.when||''));
+  if(!dayPlans.length) {
+    $('#dayPlans').innerHTML = '<p style="color:var(--ink-soft);text-align:center">这天还没约饭</p>';
+  }else {
+    $('#dayPlans').innerHTML = dayPlans.map(p => `
+      <div class="plan-card">
+        <h3>${p.title}</h3>
+        <div class="plan-meta">📍 <b>${p.place}</b> · 🕐 ${p.when}</div>
+        <div class="plan-joins">
+          <span style="font-size:12px;color:var(--ink-soft)">${p.joins?.length||0}人报名</span>
+          ${(p.joins||[]).map(j => avatarHTML(j.cid, j.nick)).join('')}
+        </div>
+      </div>
+    `).join('');
+  }
+  
+  $('#dayModal').classList.add('on');
+}
+
+// ===== 约饭 =====
+function renderPlans() {
+  const today = ymd(new Date());
+  const sorted = [...plans].sort((a,b) => {
+    const ta = (a.when||'').localeCompare(b.when||'');
+    const pa = (a.when||'') < today;
+    const pb = (b.when||'') < today;
+    if(pa !== pb) return pa?1:-1;
+    return ta;
+  });
+  
+  $('#planEmpty').classList.toggle('hidden', sorted.length > 0);
+  $('#planList').innerHTML = sorted.map(p => {
+    const joined = (p.joins||[]).some(j => j.cid === cid);
+    const isPast = (p.when||'') < today;
+    
+    return `<div class="plan-card ${isPast?'plan-past':''}">
+      <h3>${p.title} ${isPast?'(已过)':''}</h3>
+      <div class="plan-meta">
+        📍 <b>${p.place}</b><br>
+        🕐 <b>${p.when}</b><br>
+        ${p.note?'💬 '+p.note:''}
+      </div>
+      <div class="plan-joins">
+        <span style="font-size:12px;color:var(--ink-soft)">${p.joins?.length||0}人报名</span>
+        ${(p.joins||[]).map(j => avatarHTML(j.cid, j.nick)).join('')}
+      </div>
+      ${!isPast ? `<button class="plan-join-btn ${joined?'joined':''}" data-plan="${p.id}">
+        ${joined?'✓ 已报名':'🙋 我要去'}
+      </button>` : ''}
+    </div>`;
+  }).join('');
+  
+  $('#planList').querySelectorAll('[data-plan]').forEach(btn => {
+    btn.onclick = async () => {
+      const p = plans.find(x => x.id === btn.dataset.plan);
+      if(!p) return;
+      const joined = (p.joins||[]).find(j => j.cid === cid);
+      const joins = p.joins || [];
+      if(joined) {
+        const i = joins.findIndex(j => j.cid === cid);
+        joins.splice(i, 1);
+      }else {
+        joins.push({cid, nick, ms: Date.now()});
+      }
+      try {
+        await updateDoc(doc(db, 'plans', p.id), {joins});
+      }catch(e) {
+        alert('报名失败：' + e.message);
+      }
+    };
+  });
+}
+
+$('#planNew').onclick = () => {
+  const d = new Date();
+  d.setHours(12,0,0,0);
+  $('#planTitle').value = '';
+  $('#planPlace').value = '';
+  $('#planWhen').value = d.toISOString().slice(0,16);
+  $('#planNote').value = '';
+  $('#planModal').classList.add('on');
+};
+
+$('#quickPlanBtn').onclick = () => {
+  const d = new Date(selectedDate);
+  d.setHours(12,0,0,0);
+  $('#planTitle').value = '';
+  $('#planPlace').value = '';
+  $('#planWhen').value = d.toISOString().slice(0,16);
+  $('#planNote').value = '';
+  $('#dayModal').classList.remove('on');
+  $('#planModal').classList.add('on');
+};
+
+$('#planSaveBtn').onclick = async () => {
+  const title = $('#planTitle').value.trim();
+  const place = $('#planPlace').value.trim();
+  const when = $('#planWhen').value;
+  if(!title||!place||!when) {
+    alert('请填完所有必填项');
+    return;
+  }
+  const date = when.slice(0,10);
+  const note = $('#planNote').value.trim();
+  
+  try {
+    await addDoc(collection(db, 'plans'), {
+      title, place, when, note, date,
+      joins: [{cid, nick, ms: Date.now()}],
+      createdBy: cid, createdAt: serverTimestamp()
+    });
+    $('#planModal').classList.remove('on');
+  }catch(e) {
+    alert('保存失败：' + e.message);
+  }
+};
+
+// ===== 相册 =====
+function renderAlbum() {
+  const sorted = [...shots].sort((a,b) => (b.ms||0) - (a.ms||0));
+  
+  $('#albumEmpty').classList.toggle('hidden', sorted.length > 0);
+  $('#albumList').innerHTML = sorted.map(s => {
+    const imgs = s.images || [];
+    const gridClass = imgs.length===1?'':imgs.length===2?'grid-2':imgs.length===3?'grid-3':'grid-4';
+    
+    return `<div class="album-item">
+      <div class="album-header">
+        ${avatarHTML(s.cid, s.nick)}
+        <div class="album-info">
+          <div class="album-nick">${s.nick}</div>
+          <div class="album-time">${ago(s.ms)}</div>
+        </div>
+      </div>
+      <div class="album-media ${gridClass}">
+        ${imgs.slice(0,4).map((url,i) => `
+          <img src="${url}" alt="" data-lightbox="${url}" ${i===3&&imgs.length>4?'style="position:relative"':''}>
+          ${i===3&&imgs.length>4?`<div style="position:absolute;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700">+${imgs.length-4}</div>`:''}
+        `).join('')}
+      </div>
+      ${s.caption ? `<div class="album-caption">${s.caption}</div>` : ''}
+    </div>`;
+  }).join('');
+  
+  $('#albumList').querySelectorAll('[data-lightbox]').forEach(img => {
+    img.onclick = () => openLightbox(img.dataset.lightbox);
+  });
+}
+
+function openLightbox(url) {
+  $('#lightboxImg').src = url;
+  $('#lightbox').classList.add('on');
+}
+
+function closeLightbox() {
+  $('#lightbox').classList.remove('on');
+}
+
+$('#uploadBtn').onclick = () => {
+  uploadQueue = [];
+  $('#previewBox').innerHTML = '';
+  $('#albumCaption').value = '';
+  $('#fileInput').click();
+};
+
+$('#fileInput').onchange = async e => {
+  const files = [...e.target.files];
+  if(!files.length) return;
+  
+  for(const f of files) {
+    try {
+      const reader = new FileReader();
+      reader.onload = ev => {
+        uploadQueue.push(ev.target.result);
+        $('#previewBox').innerHTML += `<div class="img-preview" data-img="${uploadQueue.length-1}">
+          <img src="${ev.target.result}" alt="">
+          <button class="img-del">✕</button>
+        </div>`;
+        document.querySelectorAll('.img-del').forEach(btn => {
+          btn.onclick = e => {
+            const idx = +e.target.closest('.img-preview').dataset.img;
+            uploadQueue.splice(idx, 1);
+            e.target.closest('.img-preview').remove();
+          };
+        });
+      };
+      reader.readAsDataURL(f);
+    }catch(err) {
+      alert(f.name + '：' + err.message);
+    }
+  }
+  
+  if(uploadQueue.length > 0) {
+    $('#albumModal').classList.add('on');
+  }
+  e.target.value = '';
+};
+
+$('#albumSaveBtn').onclick = async () => {
+  if(!uploadQueue.length) return;
+  
+  const btn = $('#albumSaveBtn');
+  btn.disabled = true;
+  btn.textContent = '上传中…';
+  
+  try {
+    await addDoc(collection(db, 'shots'), {
+      nick, cid, avatar,
+      images: uploadQueue,
+      caption: $('#albumCaption').value.trim(),
+      ms: Date.now(),
+      createdAt: serverTimestamp()
+    });
+    $('#albumModal').classList.remove('on');
+    uploadQueue = [];
+  }catch(e) {
+    alert('上传失败：' + e.message);
+  }finally {
+    btn.disabled = false;
+    btn.textContent = '传上去';
+  }
+};
+
+// ===== 用户列表 =====
+function renderFolks() {
+  const now = Date.now();
+  const online = folks.filter(f => (now - (f.lastSeen||0)) < 3*60*1000);
+  
+  $('#folksList').innerHTML = folks.map(f => {
+    const isOnline = (now - (f.lastSeen||0)) < 3*60*1000;
+    const isMe = f.id === cid;
+    
+    return `<div class="folk-card">
+      ${f.avatar ? `<img class="av" src="${f.avatar}" alt="">` : `<span class="av-txt" style="background:${avColor(f.nick)}">${(f.nick||'?').charAt(0)}</span>`}
+      <div class="nick">${f.nick}</div>
+      <div class="status">
+        <span class="status-dot ${isOnline?'on':'off'}"></span>
+        ${isOnline?'在线':ago(f.lastSeen||0)}
+        ${isMe?' (你)':''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ===== 头像 =====
+$('#changeAv').onclick = () => $('#avModal').classList.add('on');
+
+$('#avFile').onchange = async e => {
+  const f = e.target.files[0];
+  if(!f) return;
+  
+  const status = $('#avStatus');
+  status.textContent = '处理中…';
+  
+  try {
+    const reader = new FileReader();
+    reader.onload = async ev => {
+      // 简单压缩（生成缩略图）
+      const img = new Image();
+      img.onload = async () => {
+        const canvas = document.createElement('canvas');
+        const s = Math.min(100, Math.min(img.width, img.height));
+        canvas.width = canvas.height = 100;
+        canvas.getContext('2d').drawImage(img, (img.width-s)/2, (img.height-s)/2, s, s, 0, 0, 100, 100);
+        avatar = canvas.toDataURL('image/jpeg', 0.8);
+        localStorage.setItem('bsf_avatar', avatar);
+        await ping();
+        renderMe();
+        status.textContent = '换好了！';
+        setTimeout(() => $('#avModal').classList.remove('on'), 500);
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(f);
+  }catch(e) {
+    status.textContent = '失败：' + e.message;
+  }
+};
+
+// ===== 标签页 =====
+document.querySelectorAll('.tab').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.tab').forEach(b => b.classList.remove('on'));
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('on'));
+    btn.classList.add('on');
+    $('#v-' + btn.dataset.view).classList.add('on');
+  };
+});
+
+// ===== 模态关闭 =====
+document.querySelectorAll('[data-close]').forEach(btn => {
+  btn.onclick = () => $('#' + btn.dataset.close).classList.remove('on');
+});
+
+document.querySelectorAll('.modal').forEach(m => {
+  m.onclick = e => { if(e.target === m) m.classList.remove('on'); };
+});
+
+// ===== 登出 =====
+$('#logoutBtn').onclick = () => signOut(auth);
+
+// ===== 初始化 =====
+window.closeLightbox = closeLightbox;
+$('#todayBtn').onclick = () => { currentMonth = new Date(); renderCalendar(); };
+$('#prevM').onclick = () => { currentMonth.setMonth(currentMonth.getMonth()-1); renderCalendar(); };
+$('#nextM').onclick = () => { currentMonth.setMonth(currentMonth.getMonth()+1); renderCalendar(); };
+
+</script>
+</body>
+</html>
