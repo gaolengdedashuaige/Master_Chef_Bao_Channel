@@ -149,6 +149,24 @@ textarea{resize:vertical;min-height:100px}
   display:block;transition:all 0.3s}
 .album-media img:hover{transform:scale(1.02)}
 .album-caption{padding:14px;font-size:14px;line-height:1.5;color:var(--ink)}
+.album-comments{padding:12px 14px 14px;border-top:1px solid var(--line);background:#fffdf9}
+.comment-title{font-size:13px;color:var(--ink-soft);font-weight:700;margin-bottom:8px}
+.comment-item{display:flex;gap:9px;padding:8px 0;border-bottom:1px dashed var(--line)}
+.comment-item.reply{margin-left:34px}
+.comment-item .av,.comment-item .av-txt{width:28px;height:28px;flex:none;font-size:12px}
+.comment-body{flex:1;min-width:0;font-size:13px;line-height:1.55;word-break:break-word}
+.comment-name{font-weight:700;color:var(--red)}
+.comment-replyto{color:var(--ink-soft)}
+.comment-meta{display:flex;gap:12px;margin-top:3px;color:var(--ink-soft);font-size:11px}
+.comment-reply{border:0;background:none;color:var(--red);padding:0;cursor:pointer;font:inherit}
+.comment-compose{display:flex;gap:8px;margin-top:11px;align-items:center}
+.comment-compose input{margin:0;padding:10px 12px;border-radius:14px;font-size:13px}
+.comment-send{border:0;border-radius:13px;background:var(--red);color:#fff;padding:10px 13px;
+  font-weight:700;white-space:nowrap;cursor:pointer}
+.reply-hint{display:none;font-size:12px;color:var(--red);margin:8px 0 0;padding:7px 10px;
+  background:#ffe8e8;border-radius:10px}
+.reply-hint.on{display:flex;justify-content:space-between;align-items:center}
+.reply-cancel{border:0;background:none;color:var(--ink-soft);cursor:pointer}
 
 /* ===== 备忘录 ===== */
 .memo-card{background:#fff;border:2px solid var(--line);border-radius:18px;
@@ -461,6 +479,7 @@ localStorage.setItem('bsf_cid', cid);
 let plans = [];
 let memos = [];
 let shots = [];
+let albumComments = [];
 let folks = [];
 let folkMap = {};
 let notifications = JSON.parse(localStorage.getItem('bsf_notif') || '[]');
@@ -471,6 +490,7 @@ let uploadQueue = [];
 let pendingAvatar = null;
 
 const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>'"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
 const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 const ago = ms => {
   if(!ms) return '刚刚';
@@ -612,6 +632,11 @@ function listenData() {
   
   onSnapshot(collection(db, 'shots'), snap => {
     shots = snap.docs.map(d => ({id: d.id, ...d.data()}));
+    renderAlbum();
+  });
+
+  onSnapshot(collection(db, 'albumComments'), snap => {
+    albumComments = snap.docs.map(d => ({id: d.id, ...d.data()}));
     renderAlbum();
   });
   
@@ -935,6 +960,7 @@ function renderAlbum() {
   $('#albumEmpty').classList.toggle('hidden', sorted.length > 0);
   $('#albumList').innerHTML = sorted.map(s => {
     const imgs = s.images || [];
+    const comments = albumComments.filter(c => c.shotId === s.id).sort((a,b) => (a.ms||0)-(b.ms||0));
     const gridClass = imgs.length===1?'':imgs.length<=2?'grid-2':imgs.length===3?'grid-3':'grid-4';
     
     return `<div class="album-item">
@@ -952,12 +978,96 @@ function renderAlbum() {
         `).join('')}
       </div>
       ${s.caption ? `<div class="album-caption">${s.caption}</div>` : ''}
+      <div class="album-comments">
+        <div class="comment-title">💬 ${comments.length ? comments.length + ' 条评论' : '来做第一个评论的人吧'}</div>
+        <div class="comment-list">
+          ${comments.map(c => `<div class="comment-item ${c.parentId?'reply':''}">
+            ${avatarHTML(c.cid, c.nick)}
+            <div class="comment-body">
+              <span class="comment-name">${esc(c.nick)}</span>
+              ${c.replyToNick ? `<span class="comment-replyto"> 回复 ${esc(c.replyToNick)}</span>` : ''}：
+              <span>${esc(c.text)}</span>
+              <div class="comment-meta"><span>${ago(c.ms)}</span>
+                <button class="comment-reply" data-reply-shot="${s.id}" data-reply-id="${c.id}" data-reply-nick="${esc(c.nick)}">回复</button>
+              </div>
+            </div>
+          </div>`).join('')}
+        </div>
+        <div class="reply-hint" id="replyHint-${s.id}"><span></span><button class="reply-cancel" data-cancel-reply="${s.id}">取消</button></div>
+        <div class="comment-compose">
+          <input id="commentInput-${s.id}" data-comment-input="${s.id}" maxlength="180" placeholder="写下你的评论…">
+          <button class="comment-send" data-comment-send="${s.id}">发送</button>
+        </div>
+      </div>
     </div>`;
   }).join('');
   
   $('#albumList').querySelectorAll('[data-lightbox]').forEach(img => {
     img.onclick = () => openLightbox(img.dataset.lightbox);
   });
+
+  $('#albumList').querySelectorAll('[data-reply-shot]').forEach(btn => {
+    btn.onclick = () => {
+      const shotId = btn.dataset.replyShot;
+      const input = document.getElementById('commentInput-' + shotId);
+      input.dataset.parentId = btn.dataset.replyId;
+      input.dataset.replyNick = btn.dataset.replyNick;
+      input.placeholder = `回复 ${btn.dataset.replyNick}…`;
+      const hint = document.getElementById('replyHint-' + shotId);
+      hint.querySelector('span').textContent = `正在回复 ${btn.dataset.replyNick}`;
+      hint.classList.add('on');
+      input.focus();
+    };
+  });
+
+  $('#albumList').querySelectorAll('[data-cancel-reply]').forEach(btn => {
+    btn.onclick = () => clearReply(btn.dataset.cancelReply);
+  });
+
+  $('#albumList').querySelectorAll('[data-comment-send]').forEach(btn => {
+    btn.onclick = () => sendAlbumComment(btn.dataset.commentSend, btn);
+  });
+
+  $('#albumList').querySelectorAll('[data-comment-input]').forEach(input => {
+    input.onkeydown = e => {
+      if(e.key === 'Enter' && !e.isComposing) {
+        e.preventDefault();
+        input.parentElement.querySelector('[data-comment-send]').click();
+      }
+    };
+  });
+}
+
+function clearReply(shotId) {
+  const input = document.getElementById('commentInput-' + shotId);
+  if(!input) return;
+  delete input.dataset.parentId;
+  delete input.dataset.replyNick;
+  input.placeholder = '写下你的评论…';
+  document.getElementById('replyHint-' + shotId)?.classList.remove('on');
+}
+
+async function sendAlbumComment(shotId, btn) {
+  const input = document.getElementById('commentInput-' + shotId);
+  const text = input.value.trim();
+  if(!text) { input.focus(); return; }
+  btn.disabled = true;
+  btn.textContent = '发送中';
+  try {
+    await addDoc(collection(db, 'albumComments'), {
+      shotId, cid, nick, avatar, text,
+      parentId: input.dataset.parentId || '',
+      replyToNick: input.dataset.replyNick || '',
+      ms: Date.now(), createdAt: serverTimestamp()
+    });
+    input.value = '';
+    clearReply(shotId);
+  }catch(e) {
+    alert('评论失败：' + e.message);
+  }finally {
+    btn.disabled = false;
+    btn.textContent = '发送';
+  }
 }
 
 function openLightbox(url) {
