@@ -22,7 +22,7 @@ body{
   padding-bottom:50px;
   min-height:100vh;
 }
-.wrap{max-width:980px;margin:0 auto;padding:0 16px}
+.wrap{max-width:980px;margin:0 auto;padding:0 16px;margin-bottom:20px}
 .btn{background:linear-gradient(135deg, var(--red) 0%, #FF5252 100%);color:#fff;
   border:none;border-radius:20px;padding:14px 24px;font-size:15px;font-weight:700;
   cursor:pointer;width:100%;box-shadow:0 4px 15px rgba(255,107,107,0.3);
@@ -81,6 +81,16 @@ textarea{resize:vertical;min-height:100px}
 .tabs button.on{color:var(--red);border-bottom-color:var(--red);font-weight:700}
 .view{display:none}
 .view.on{display:block}
+
+/* ===== 通知铃 ===== */
+.notify-bell{position:relative;cursor:pointer;font-size:20px;transition:all 0.3s}
+.notify-badge{position:absolute;top:-6px;right:-8px;background:var(--red);
+  color:#fff;border-radius:50%;width:22px;height:22px;display:flex;
+  align-items:center;justify-content:center;font-size:11px;font-weight:700}
+.notify-list{max-height:300px;overflow-y:auto;margin-bottom:12px}
+.notify-item{background:linear-gradient(135deg, #FFE8E8 0%, #FFD0D0 100%);
+  border-left:3px solid var(--red);padding:12px;border-radius:10px;margin-bottom:10px;
+  font-size:13px;line-height:1.6}
 
 /* ===== 日历 ===== */
 .cal-header{display:flex;justify-content:space-between;align-items:center;
@@ -230,7 +240,8 @@ textarea{resize:vertical;min-height:100px}
       <h1>🍜 鲍师傅私厨</h1>
       <div class="header-right">
         <div class="me-box" id="meBox"></div>
-        <button id="changeAv">🖼️</button>
+        <div class="notify-bell" id="notifyBell">🔔<span id="notifyBadge" class="notify-badge hidden">0</span></div>
+        <button id="settingsBtn">⚙️</button>
         <button id="logoutBtn">👋</button>
       </div>
     </div>
@@ -363,15 +374,39 @@ textarea{resize:vertical;min-height:100px}
   <button class="lightbox-close" onclick="closeLightbox()">×</button>
 </div>
 
-<!-- 换头像 -->
-<div id="avModal" class="modal">
+<!-- 通知弹窗 -->
+<div id="notifyModal" class="modal">
   <div class="modal-content">
     <div class="modal-head">
-      <h2>换头像</h2>
-      <button class="modal-close" data-close="avModal">×</button>
+      <h2>🔔 通知</h2>
+      <button class="modal-close" data-close="notifyModal">×</button>
     </div>
-    <input id="avFile" type="file" accept="image/*" class="field">
-    <div id="avStatus" style="text-align:center;color:var(--ink-soft);font-size:13px;margin:10px 0"></div>
+    <div class="notify-list" id="notifyList"></div>
+    <button id="clearNotify" class="btn" style="width:100%">清空通知</button>
+  </div>
+</div>
+
+<!-- 设置弹窗 -->
+<div id="settingsModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-head">
+      <h2>⚙️ 设置</h2>
+      <button class="modal-close" data-close="settingsModal">×</button>
+    </div>
+    
+    <div style="border:2px solid var(--line);border-radius:16px;padding:16px;margin-bottom:16px">
+      <h3 style="margin:0 0 12px;font-size:16px">👤 昵称</h3>
+      <div style="display:flex;gap:8px">
+        <input id="nickInput" type="text" style="flex:1;margin:0" placeholder="输入新昵称">
+        <button id="saveNickBtn" class="btn" style="width:auto;padding:14px 20px">保存</button>
+      </div>
+    </div>
+    
+    <div style="border:2px solid var(--line);border-radius:16px;padding:16px">
+      <h3 style="margin:0 0 12px;font-size:16px">🖼️ 头像</h3>
+      <input id="avFile" type="file" accept="image/*" class="field">
+      <div id="avStatus" style="text-align:center;color:var(--ink-soft);font-size:13px;margin:10px 0"></div>
+    </div>
   </div>
 </div>
 
@@ -407,6 +442,7 @@ let memos = [];
 let shots = [];
 let folks = [];
 let folkMap = {};
+let notifications = JSON.parse(localStorage.getItem('bsf_notif') || '[]');
 
 let currentMonth = new Date();
 let selectedDate = null;
@@ -468,6 +504,7 @@ onAuthStateChanged(auth, async user => {
     $('#gate').classList.add('hidden');
     $('#app').classList.remove('hidden');
     renderMe();
+    updateNotifyBadge();
     listenData();
     ping();
     setInterval(ping, 60000);
@@ -490,6 +527,53 @@ function renderMe() {
   const av = avatarHTML(cid, nick);
   $('#meBox').innerHTML = `${av}<strong>${nick}</strong>`;
 }
+
+function addNotification(type, msg) {
+  const notif = {id: Date.now(), type, msg, cid: cid, ms: Date.now()};
+  notifications.unshift(notif);
+  if(notifications.length > 50) notifications.pop();
+  localStorage.setItem('bsf_notif', JSON.stringify(notifications));
+  updateNotifyBadge();
+}
+
+function updateNotifyBadge() {
+  const unread = notifications.filter(n => !n.read).length;
+  const badge = $('#notifyBadge');
+  if(unread > 0) {
+    badge.textContent = unread;
+    badge.classList.remove('hidden');
+  }else {
+    badge.classList.add('hidden');
+  }
+}
+
+function renderNotifications() {
+  const html = notifications.length ? 
+    notifications.map(n => `
+      <div class="notify-item">
+        <strong>${n.type === 'mention' ? '🎯' : '📢'}</strong> ${n.msg}
+        <div style="font-size:11px;color:var(--ink-soft);margin-top:4px">${ago(n.ms)}</div>
+      </div>
+    `).join('')
+  : '<div class="empty" style="padding:20px">暂无通知</div>';
+  
+  $('#notifyList').innerHTML = html;
+  notifications.forEach(n => n.read = true);
+  localStorage.setItem('bsf_notif', JSON.stringify(notifications));
+  updateNotifyBadge();
+}
+
+$('#notifyBell').onclick = () => {
+  renderNotifications();
+  $('#notifyModal').classList.add('on');
+};
+
+$('#clearNotify').onclick = () => {
+  notifications = [];
+  localStorage.setItem('bsf_notif', JSON.stringify(notifications));
+  updateNotifyBadge();
+  renderNotifications();
+};
 
 // ===== 监听数据 =====
 function listenData() {
@@ -808,6 +892,14 @@ $('#memoSaveBtn').onclick = async () => {
       ms: Date.now(),
       createdAt: serverTimestamp()
     });
+    
+    // 为被 @的人生成通知
+    mentions.forEach(m => {
+      if(m.cid !== cid) {
+        addNotification('mention', `${nick} 在备忘中提到了你：${text.slice(0,30)}...`);
+      }
+    });
+    
     $('#memoModal').classList.remove('on');
   }catch(e) {
     alert('保存失败：' + e.message);
@@ -862,26 +954,61 @@ $('#uploadBtn').onclick = () => {
   $('#fileInput').click();
 };
 
+function compressImage(file) {
+  return new Promise((resolve, reject) => {
+    if(file.size > 5*1024*1024) { reject(new Error('图片过大，请选择 < 5MB 的')); return; }
+    
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let w = img.width, h = img.height;
+        if(w > 800 || h > 800) {
+          const scale = Math.min(800/w, 800/h);
+          w *= scale;
+          h *= scale;
+        }
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        const compressed = canvas.toDataURL('image/jpeg', 0.7);
+        resolve(compressed);
+      };
+      img.onerror = () => reject(new Error('图片加载失败'));
+      img.src = ev.target.result;
+    };
+    reader.onerror = () => reject(new Error('文件读取失败'));
+    reader.readAsDataURL(file);
+  });
+}
+
 $('#fileInput').onchange = async e => {
   const files = [...e.target.files];
   if(!files.length) return;
+  if(files.length > 3) { alert('最多选 3 张图'); return; }
   
+  const btn = $('#uploadBtn');
+  btn.disabled = true;
+  btn.textContent = '处理中…';
+  
+  uploadQueue = [];
   for(const f of files) {
     try {
-      const reader = new FileReader();
-      reader.onload = ev => {
-        uploadQueue.push(ev.target.result);
-        const idx = uploadQueue.length - 1;
-        $('#previewBox').innerHTML += `<div class="img-preview" data-img="${idx}">
-          <img src="${ev.target.result}" alt="">
-          <button class="img-del">✕</button>
-        </div>`;
-      };
-      reader.readAsDataURL(f);
+      const compressed = await compressImage(f);
+      uploadQueue.push(compressed);
+      const idx = uploadQueue.length - 1;
+      $('#previewBox').innerHTML += `<div class="img-preview" data-img="${idx}">
+        <img src="${compressed}" alt="">
+        <button class="img-del">✕</button>
+      </div>`;
     }catch(err) {
       alert(f.name + '：' + err.message);
     }
   }
+  
+  btn.disabled = false;
+  btn.textContent = '📤 上传照片';
   
   setTimeout(() => {
     document.querySelectorAll('.img-del').forEach(btn => {
@@ -925,8 +1052,29 @@ $('#albumSaveBtn').onclick = async () => {
   }
 };
 
-// ===== 头像 =====
-$('#changeAv').onclick = () => $('#avModal').classList.add('on');
+// ===== 设置 =====
+$('#settingsBtn').onclick = () => {
+  $('#nickInput').value = nick;
+  $('#avStatus').textContent = '';
+  $('#settingsModal').classList.add('on');
+};
+
+$('#saveNickBtn').onclick = async () => {
+  const newNick = $('#nickInput').value.trim();
+  if(!newNick) { alert('昵称不能为空'); return; }
+  
+  nick = newNick;
+  localStorage.setItem('bsf_nick', nick);
+  renderMe();
+  
+  try {
+    await updateDoc(doc(db, 'folks', cid), {nick});
+    addNotification('info', `昵称已更新为 ${nick}`);
+    $('#settingsModal').classList.remove('on');
+  }catch(e) {
+    alert('更新失败：' + e.message);
+  }
+};
 
 $('#avFile').onchange = async e => {
   const f = e.target.files[0];
